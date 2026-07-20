@@ -91,7 +91,7 @@ android hooking watch class asvid.github.io.fridaapp.MainActivity
 android hooking watch class_method com.example.app.util.NetUtilKt.getUUID
 ```
 
-From [HackTricks - objection](https://book.hacktricks.wiki/en/mobile-pentesting/android/objection-tutorial/index.html).
+From [HackTricks - objection](https://book.hacktricks.wiki/en/mobile-pentesting/android/objection-tutorial/index.html). See the full command reference in [`docs/hacktricks-tutorial.md`](docs/hacktricks-tutorial.md).
 
 ## Build from source
 
