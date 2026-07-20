@@ -1,4 +1,7 @@
 export const evaluate = (js: string): void => {
-  // tslint:disable-next-line:no-eval
-  eval(js);
+  if (typeof Java !== 'undefined' && Java.perform) {
+    Java.perform(() => { (0, eval)(js); });
+  } else {
+    (0, eval)(js);
+  }
 };
