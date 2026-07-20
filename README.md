@@ -43,7 +43,7 @@ connecting via Frida gadget transport (the `-g` flag) — the webpack emoji head
 pip install https://github.com/Aceproulx/objection/releases/download/v1.12.5-fixed/objection-1.12.5-py3-none-any.whl && pip install frida==17.16.2 frida-tools==14.5.0
 
 # Verify
-objection --help
+objection --version
 ```
 
 ## Usage

@@ -268,6 +268,7 @@ export const watch = (pattern: string, dargs: boolean, dbt: boolean, dret: boole
 
   // The general idea here is that we enumerate the total functions (based on the pattern type)
   // and via watchClass (which calls wathMethod) apply hooks.
+  pattern = normalizePattern(pattern);
   const patternType = getPatternType(pattern);
 
   if (patternType === PatternType.Klass) {
