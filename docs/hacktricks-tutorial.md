@@ -40,35 +40,40 @@ file upload <local path> [<remote path>]
 
 Scripts can use `console.log()` — output is shown in both the objection REPL and Frida CLI.
 
+**Important:** Both Frida CLI (`-l`) and objection's `evaluate` require scripts
+to wrap Java operations inside `Java.perform()`. JADX's "Copy as Frida script"
+already includes this wrapper and works as-is.
+
 ### Via objection REPL (evaluate)
 
+Objection's `evaluate` **auto-wraps** the script in `Java.perform()` — bare
+`Java.use()` at top level works without manual wrapping.
+
 ```
-evaluate hook.js
+evaluate hooks.js
+```
+
+### Via Frida CLI + USB
+
+Frida CLI's `-l` does **not** auto-wrap — scripts must contain
+`Java.perform()` explicitly.
+
+```bash
+# Load script on attach
+frida -U -p $(adb pidof <package>) -l hooks.js
 ```
 
 ### Via Frida CLI + adb forward (gadget mode)
 
 ```bash
-# In a separate terminal, forward the port
 adb forward tcp:27042 tcp:27042
-
-# Load script on attach
-frida -H 127.0.0.1:27042 Gadget -l hook.js
-
-# Or load it after attaching, inside the Frida CLI:
-#   %load hook.js
+frida -H 127.0.0.1:27042 Gadget -l hooks.js
 ```
 
 ### Via startup script
 
 ```bash
-objection -n asvid.github.io.fridaapp start --startup-script hook.js
-```
-
-### Via import (objection REPL — separate session, may fail in gadget mode)
-
-```
-import hook.js
+objection -n asvid.github.io.fridaapp start --startup-script hooks.js
 ```
 
 ## Jobs
