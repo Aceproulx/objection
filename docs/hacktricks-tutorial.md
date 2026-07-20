@@ -38,7 +38,7 @@ file upload <local path> [<remote path>]
 
 ## Loading custom Frida scripts
 
-Scripts can use `console.log()` — output is shown in the objection REPL.
+Scripts can use `console.log()` — output is shown in both the objection REPL and Frida CLI.
 
 ### Via objection REPL (evaluate)
 
@@ -52,8 +52,11 @@ evaluate hook.js
 # In a separate terminal, forward the port
 adb forward tcp:27042 tcp:27042
 
-# Attach Frida CLI to the gadget and load the script
+# Load script on attach
 frida -H 127.0.0.1:27042 Gadget -l hook.js
+
+# Or load it after attaching, inside the Frida CLI:
+#   %load hook.js
 ```
 
 ### Via startup script
@@ -62,7 +65,7 @@ frida -H 127.0.0.1:27042 Gadget -l hook.js
 objection -n asvid.github.io.fridaapp start --startup-script hook.js
 ```
 
-### Via import (creates a separate session — may fail in gadget mode)
+### Via import (objection REPL — separate session, may fail in gadget mode)
 
 ```
 import hook.js
