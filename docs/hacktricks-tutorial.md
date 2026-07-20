@@ -40,40 +40,41 @@ file upload <local path> [<remote path>]
 
 Scripts can use `console.log()` — output is shown in both the objection REPL and Frida CLI.
 
-**Important:** Both Frida CLI (`-l`) and objection's `evaluate` require scripts
-to wrap Java operations inside `Java.perform()`. JADX's "Copy as Frida script"
-already includes this wrapper and works as-is.
+JADX's "Copy as Frida script" works as-is everywhere (it includes `Java.perform()`
+already).
+
+| Method | Auto-wrap `Java.perform()`? | Syntax |
+|--------|----------------------------|--------|
+| objection `evaluate` | ✅ Yes | `evaluate script.js` |
+| objection `--startup-script` | ✅ Yes | `objection -n pkg start --startup-script script.js` |
+| Frida CLI `-l` | ❌ No (must wrap) | `frida -U -n pkg -l script.js` |
 
 ### Via objection REPL (evaluate)
 
-Objection's `evaluate` **auto-wraps** the script in `Java.perform()` — bare
-`Java.use()` at top level works without manual wrapping.
+Bare `Java.use()` at top level works without manual wrapping.
 
 ```
 evaluate hooks.js
-```
-
-### Via Frida CLI + USB
-
-Frida CLI's `-l` does **not** auto-wrap — scripts must contain
-`Java.perform()` explicitly.
-
-```bash
-# Load script on attach
-frida -U -p $(adb pidof <package>) -l hooks.js
-```
-
-### Via Frida CLI + adb forward (gadget mode)
-
-```bash
-adb forward tcp:27042 tcp:27042
-frida -H 127.0.0.1:27042 Gadget -l hooks.js
 ```
 
 ### Via startup script
 
 ```bash
 objection -n asvid.github.io.fridaapp start --startup-script hooks.js
+```
+
+### Via Frida CLI
+
+Frida CLI's `-l` does **not** auto-wrap — scripts must contain
+`Java.perform()` explicitly.
+
+```bash
+# USB
+frida -U -p $(adb pidof <package>) -l hooks.js
+
+# Gadget (adb forward)
+adb forward tcp:27042 tcp:27042
+frida -H 127.0.0.1:27042 Gadget -l hooks.js
 ```
 
 ## Jobs
@@ -177,37 +178,26 @@ sqlite connect /data/data/<package>/databases/app.db
 sqlite connect /data/data/<package>/databases/app.db --sync
 ```
 
+## Patches in this fork
+
+- `console.log()` output now displays in the objection REPL (Frida `type: "log"` messages handled)
+- `evaluate` and `--startup-script` auto-wrap scripts in `Java.perform()` — bare `Java.use()` works
+- Indirect eval (`(0, eval)(...)`) fixes V8 strict mode variable scoping
+- Agent JS loads with `(frida.TransportError, frida.InvalidArgumentError)` fallback for large scripts
+- `normalizePattern()` converts dot syntax (`Class.method`) to `!` syntax before type check
+- `class`/`class_method` search prefixes are skipped in hooking commands
+- Class name mangling in `watch` fixed for multi-dot names
+
 ## Early Instrumentation
 
 ```bash
-# Run a command immediately on attach
 objection -n asvid.github.io.fridaapp start --startup-command "android sslpinning disable"
-
-# Run a script immediately on attach
-objection -n asvid.github.io.fridaapp start --startup-script ssl-bypass.js
 ```
 
 ## Exit
 
 ```
 exit
-```
-
-## Patched Syntax (Fixes in this fork)
-
-These command patterns were broken in upstream objection due to the webpack emoji
-header issue and `normalizePattern` manging multi-dot class names. They now work:
-
-```
-# HackTricks multi-arg syntax
-android hooking search methods asvid.github.io.fridaapp MainActivity
-android hooking search classes asvid.github.io.fridaapp
-
-# Class watch (dot-syntax class name)
-android hooking watch class asvid.github.io.fridaapp.MainActivity
-
-# Class method watch (dot-syntax class.method)
-android hooking watch class_method asvid.github.io.fridaapp.MainActivity.sum
 ```
 
 ## Source
