@@ -73,27 +73,4 @@ def notify_newer_version() -> None:
 
 
 def check_version() -> None:
-    """
-        Checks if the current version of objection is up to date.
-
-        :return:
-    """
-
-    # if we have not checked for a new version today
-    if not (cached_version_data()['last_check'] > datetime.now() - timedelta(hours=23)):
-        click.secho('Checking for a newer version of objection...', dim=True)
-
-        # noinspection PyBroadException
-        try:
-
-            r = requests.get('https://api.github.com/repos/sensepost/objection/releases/latest').json()
-            update_version_cache(r['tag_name'])
-
-        # Just be quiet about any exceptions here. If this method fails
-        # it really doesn't matter.
-        except Exception:
-            # there is good chance an installation does not have internet, so cache
-            # the current version as the latest to not be annoying about updates
-            update_version_cache(__version__)
-
-    notify_newer_version()
+    pass
