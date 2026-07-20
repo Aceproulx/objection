@@ -121,7 +121,16 @@ export const lazyWatchForPattern = (query: string, watch: boolean, dargs: boolea
   }, 1000 * 5);
 };
 
+const normalizePattern = (pattern: string): string => {
+  if (pattern.indexOf(".") !== -1 && pattern.indexOf("!") === -1 && pattern.indexOf("*") === -1) {
+    const i = pattern.lastIndexOf(".");
+    return pattern.substring(0, i) + "!" + pattern.substring(i + 1);
+  }
+  return pattern;
+};
+
 export const javaEnumerate = (query: string): Promise<JavaTypes.EnumerateMethodsMatchGroup[]> => {
+  query = normalizePattern(query);
   // If the query is just a classname, strongarm it into a pattern.
   if (getPatternType(query) === PatternType.Klass) {
     query = `*${query}*!*`;

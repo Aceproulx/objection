@@ -1,4 +1,8 @@
 import argparse
+import base64
+import os
+import subprocess
+import tempfile
 import atexit
 import json
 import sys
@@ -142,13 +146,23 @@ class Agent(object):
 
     def _get_agent_source(self) -> str:
         """
-            Loads the frida-compiled agent from disk.
+            Loads the frida-compiled agent from disk, stripping the
+            webpack emoji header that causes silent initialization failure.
 
             :return:
         """
 
         with open(self.agent_path, 'r', encoding='utf-8') as f:
             src = f.readlines()
+
+        # strip webpack emoji header that causes silent init failure
+        for i, line in enumerate(src):
+            stripped = line.strip()
+            if stripped and not stripped.startswith(('\U0001f4e6', '\u2704', '\U0001f381')):
+                fc = stripped[0]
+                if fc.isalpha() or fc in ('"', '(', '{', '[', '/', '\\'):
+                    src = src[i:]
+                    break
 
         return ''.join([str(x) for x in src])
 
@@ -273,6 +287,51 @@ class Agent(object):
 
         debug_print(f'process PID determined as {self.pid}')
 
+    def _bootstrap_source(self) -> str:
+        serial = getattr(self.device, 'id', None) or '10DC9K032C0008P'
+        cleaned = self._clean_agent_source()
+        tmp = '/data/local/tmp/agent.js'
+        try:
+            push_cmd = 'adb -s {} push "{}" {}'.format(serial, cleaned, tmp)
+            subprocess.check_output(push_cmd, shell=True, stderr=subprocess.STDOUT, timeout=30)
+        except Exception as e:
+            click.secho(f'ADB push failed: {e}. Ensure device is connected.', fg='yellow')
+        try:
+            import os as _os
+            _os.unlink(cleaned)
+        except Exception:
+            pass
+        script = (r'''var L=Process.getModuleByName("libc.so");''' +
+                  r'''var o=new NativeFunction(L.getExportByName("open"),"int",["pointer","int","int"]);''' +
+                  r'''var r=new NativeFunction(L.getExportByName("read"),"int",["int","pointer","int"]);''' +
+                  r'''var c=new NativeFunction(L.getExportByName("close"),"int",["int"]);''' +
+                  r'''var l=new NativeFunction(L.getExportByName("lseek"),"int64",["int","int64","int"]);''' +
+                  r'''var p=Memory.allocUtf8String("/data/local/tmp/agent.js");''' +
+                  r'''var fd=o(p,0,0);''' +
+                  r'''var sz=l(fd,0,2);l(fd,new Int64(0),0);''' +
+                  r'''var n=sz.toNumber();''' +
+                  r'''var b=Memory.alloc(n);r(fd,b,n);c(fd);''' +
+                  r'''(0,eval)(b.readUtf8String(n));''')
+        click.secho('Bootstrap source: {} bytes vs {} bytes'.format(len(script), len(self._get_agent_source())), dim=True)
+        return script
+
+    def _clean_agent_source(self) -> str:
+        with open(self.agent_path, 'r', encoding='utf-8') as f:
+            source = f.read()
+        lines = source.split('\n')
+        js_start = 0
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped and not stripped.startswith(('\U0001f4e6', '\u2704', '\U0001f381')):
+                fc = stripped[0]
+                if fc.isalpha() or fc in ('"', '(', '{', '[', '/', '\\'):
+                    js_start = i
+                    break
+        name = tempfile.mktemp(suffix='.js')
+        with open(name, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines[js_start:]))
+        return name
+
     def attach(self):
         """
             Attaches to an enumerated PID, injecting the objection agent.
@@ -296,7 +355,11 @@ class Agent(object):
             self.script = self.session.create_script(source=self._get_agent_source(), runtime='v8')
             self.script.enable_debugger()
         else:
-            self.script = self.session.create_script(source=self._get_agent_source())
+            try:
+                self.script = self.session.create_script(source=self._get_agent_source())
+            except (frida.TransportError, frida.InvalidArgumentError):
+                click.secho('Large agent failed to load via transport, falling back to bootstrap...', fg='yellow')
+                self.script = self.session.create_script(source=self._bootstrap_source())
 
         self.script.on('message', self.handlers.script_on_message)
         self.script.load()

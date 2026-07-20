@@ -213,6 +213,9 @@ def notify(args: list = None) -> None:
         return
 
     query = args[0]
+    # skip 'class' or 'class_method' subcommand prefix for muscle memory
+    if query in ('class', 'class_method') and len(args) > 1:
+        query = args[1]
     if not _is_pattern_or_constant(query):
         click.secho('Incorrect query syntax, please use <class>!<method> or just the class name', fg='red')
         return
@@ -246,6 +249,15 @@ def watch(args: list = None) -> None:
         return
 
     query = args[0]
+    prefix = query  # remember the original prefix
+    # skip 'class' or 'class_method' subcommand prefix for muscle memory
+    if query in ('class', 'class_method') and len(args) > 1:
+        query = '.'.join(clean_argument_flags(args[1:]))
+    # when the original prefix was 'class' (not 'class_method'), or there
+    # was no prefix and no !/* operator, append !* so normalizePattern
+    # doesn't convert the last dot to ! (which breaks multi-dot class names)
+    if prefix == 'class' or (prefix not in ('class', 'class_method') and '!' not in query and '*' not in query):
+        query += '!*'
     if not _is_pattern_or_constant(query):
         click.secho('Incorrect query syntax, please use <CLASS>!<METHOD>', fg='red')
         return
@@ -273,6 +285,23 @@ def search(args: list = None) -> None:
         return
 
     query = args[0]
+    prefix = query  # remember the original prefix
+    # skip subcommand prefix for muscle memory and HackTricks tutorial syntax:
+    #   android hooking search classes <class-pattern>
+    #   android hooking search methods <class-pattern>
+    #   android hooking search class <class-pattern>
+    #   android hooking search class_method <class>!<method>
+    if query in ('class', 'class_method', 'methods', 'classes') and len(args) > 1:
+        query = '.'.join(clean_argument_flags(args[1:]))
+
+    # for class-only patterns (no !), wrap with wildcards and append !*
+    # to enumerate all methods; this also prevents normalizePattern from
+    # converting the last dot to ! (which would break multi-dot class names)
+    # skip this when the prefix was class_method (user specified a method)
+    if prefix != 'class_method' and '!' not in query:
+        if '*' not in query:
+            query = f'*{query}*'
+        query += '!*'
 
     if not _is_pattern_or_constant(query):
         click.secho('Incorrect query syntax, please use <class>!<method>', fg='red')

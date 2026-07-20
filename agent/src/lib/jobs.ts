@@ -74,7 +74,7 @@ export class Job {
 // a record of all of the jobs in the current process
 let currentJobs: Job[] = [];
 
-export const identifier = (): number => Number(Math.random().toString(36).substring(2, 8));
+export const identifier = (): number => Math.floor(Math.random() * 1e9);
 export const all = (): Job[] => currentJobs;
 
 export const add = (jobData: Job): void => {
