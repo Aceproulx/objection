@@ -164,8 +164,7 @@ def start(plugin_folder: str, quiet: bool, startup_command: str, file_commands, 
 
     if startup_script:
         click.secho(f'Importing and running startup script at: {startup_script}', dim=True)
-        script_name = f'startup_script<{startup_script.name}>'
-        agent.attach_script(script_name, startup_script.read())
+        state_connection.get_api().evaluate(startup_script.read())
 
     if startup_command:
         for command in startup_command:

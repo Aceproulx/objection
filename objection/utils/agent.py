@@ -388,6 +388,19 @@ class Agent(object):
             :return:
         """
 
+        # auto-wrap in Java.perform() if the script uses Java API
+        # but doesn't already have a perform wrapper
+        if 'Java.use' in source and 'Java.perform' not in source:
+            source = (
+                'if (typeof Java !== \'undefined\' && Java.perform) {\n'
+                '  Java.perform(function() {\n'
+                f'{source}\n'
+                '  });\n'
+                '} else {\n'
+                f'{source}\n'
+                '}'
+            )
+
         session: frida.core.Session = self.device.attach(self.pid)
         script: frida.core.Script = session.create_script(source=source)
         script.on('message', self.handlers.script_on_message)
