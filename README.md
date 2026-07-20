@@ -1,30 +1,110 @@
-# 📱objection - Runtime Mobile Exploration
+# objection - Runtime Mobile Exploration (Patched for Frida Gadget Transport)
 
-`objection` is a runtime mobile exploration toolkit, powered by [Frida](https://www.frida.re/), built to help you assess the security posture of your mobile applications, without needing a jailbreak.
+`objection` is a runtime mobile exploration toolkit, powered by [Frida](https://frida.re/).
 
-[![Twitter](https://img.shields.io/badge/twitter-%40leonjza-blue.svg)](https://twitter.com/leonjza)
-[![PyPi](https://badge.fury.io/py/objection.svg)](https://pypi.python.org/pypi/objection)
-[![Black Hat Arsenal](https://raw.githubusercontent.com/toolswatch/badges/master/arsenal/europe/2017.svg?sanitize=true)](https://www.blackhat.com/eu-17/arsenal-overview.html)
-[![Black Hat Arsenal](https://raw.githubusercontent.com/toolswatch/badges/master/arsenal/usa/2019.svg?sanitize=true)](https://www.blackhat.com/us-19/arsenal-overview.html)
+This fork patches objection v1.12.5 to fix **silent RPC export failure** when
+connecting via Frida gadget transport (the `-g` flag) — the webpack emoji header
+(`📦`, `✄`) in `agent.js` causes Frida V8 to drop all RPC exports even though
+`create_script()`/`load()` succeed. Works on **Android 14** / **arm64-v8a**.
 
-<img align="right" src="./images/objection.png" height="220" alt="objection">
+## Versions
 
-- Supports both iOS and Android.
-- Inspect and interact with container file systems.
-- Bypass SSL pinning.
-- Dump keychains.
-- Perform memory related tasks, such as dumping & patching.
-- Explore and manipulate objects on the heap.
-- And much, much [more](https://github.com/sensepost/objection/wiki/Features)...
+| Component | Version |
+|---|---|
+| objection | 1.12.5 |
+| Frida | 17.16.2 |
+| frida-tools | 14.5.0 |
+| Python | 3.13+ |
+| Node.js (for building agent) | 20.x |
 
-Screenshots are available in the [wiki](https://github.com/sensepost/objection/wiki/Screenshots).
+## Patches
 
-## installation
+1. **Webpack header strip** — `_get_agent_source()` strips the emoji banner
+   so Frida V8 doesn't silently fail on RPC registration.
+2. **Bootstrap fallback** — if the 857 KB agent.js fails transport, objection
+   ADB-pushes a clean copy to `/data/local/tmp/agent.js` and loads it via
+   `NativeFunction` syscalls (`open`/`read`/`lseek`/`close`).
+3. **Catch widening** — catches `frida.InvalidArgumentError` alongside
+   `TransportError` so `"malformed package"` triggers the bootstrap fallback.
+4. **`identifier()` NaN fix** — `Number(Math.random().toString(36).substring(2,8))`
+   → `Math.floor(Math.random() * 1e9)` (the old code could return `NaN` under
+   Frida V8 strict mode, destroying job tracking).
+5. **`normalizePattern()`** — converts `Class.method` → `Class!method` dot syntax
+   for `search` and `watch` commands at the JS level.
+6. **HackTricks tutorial syntax** — `android hooking search methods <pkg> <class>`
+   and `android hooking watch class <class-name>` now work correctly.
+   Multi-dot class names (e.g. `asvid.github.io.fridaapp.MainActivity`) are not
+   mangled.
 
-Installation is simply a matter of `pip3 install objection`. This will give you the `objection` command. You can update an existing `objection` installation with `pip3 install --upgrade objection`.
+## Install
 
-For more detailed update and installation instructions, please refer to the wiki page [here](https://github.com/sensepost/objection/wiki/Installation).
+```bash
+# Install the patched wheel from GitHub Releases
+pip install https://github.com/Aceproulx/objection/releases/download/v1.12.5-fixed/objection-1.12.5-py3-none-any.whl
 
-## license
+# Verify
+objection --version
+```
 
-`objection` is licensed under a [GNU General Public v3 License](https://www.gnu.org/licenses/gpl-3.0.en.html). Permissions beyond the scope of this license may be available at [http://sensepost.com/contact/](http://sensepost.com/contact/).
+## Usage
+
+### 1. Patch your APK with Frida gadget
+
+```bash
+# Patch the APK to embed Frida gadget
+objection patchapk -s app-release.apk
+
+# Install the patched APK on device
+adb install app-release.objection.apk
+```
+
+### 2. Launch the app on device and explore
+
+```bash
+# Attach by process name (recommended)
+objection -n FridaApp explore
+
+# Or connect via gadget (uses the gadget name from patchapk config)
+objection -g apk explore
+```
+
+### 3. Commands inside the objection REPL
+
+```
+[usb] # env
+[usb] # ping
+[usb] # android hooking search classes asvid.github.io.fridaapp
+[usb] # android hooking search methods asvid.github.io.fridaapp.MainActivity
+[usb] # android hooking watch class asvid.github.io.fridaapp.MainActivity
+[usb] # android hooking list classes
+[usb] # android sslpinning disable
+[usb] # android root disable
+[usb] # memory list modules
+```
+
+### HackTricks tutorial syntax (these now work)
+
+```
+android hooking search methods asvid.github.io.fridaapp MainActivity
+android hooking search classes asvid.github.io.fridaapp
+android hooking watch class asvid.github.io.fridaapp.MainActivity
+android hooking watch class_method com.example.app.util.NetUtilKt.getUUID
+```
+
+From [HackTricks - objection](https://book.hacktricks.wiki/en/mobile-pentesting/android/objection-tutorial/index.html).
+
+## Build from source
+
+```bash
+git clone https://github.com/Aceproulx/objection.git
+cd objection/agent
+npm install && npm run build
+cd ..
+pip install build
+python -m build --wheel .
+pip install dist/objection-1.12.5-py3-none-any.whl
+```
+
+## License
+
+GNU General Public License v3.0.
