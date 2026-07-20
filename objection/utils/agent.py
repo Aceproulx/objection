@@ -98,7 +98,22 @@ class OutputHandlers(object):
                 click.secho('- [./incoming message] ' + '-' * 16, dim=True)
 
             # process the response
-            if message and 'payload' in message:
+            if not message:
+                return
+
+            # handle console.log/warn/error messages
+            if message.get('type') == 'log' and 'payload' in message:
+                payload = message['payload']
+                level = message.get('level', 'info')
+                if level == 'error':
+                    click.secho(str(payload), fg='red')
+                elif level == 'warn':
+                    click.secho(str(payload), fg='yellow')
+                else:
+                    click.secho(str(payload))
+                return
+
+            if 'payload' in message:
                 if len(message['payload']) > 0:
                     if isinstance(message['payload'], dict):
                         click.secho('(agent) ' + json.dumps(message['payload']))

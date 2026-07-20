@@ -3,6 +3,8 @@
 This page collects the commands from the [HackTricks Objection Tutorial](https://hacktricks.wiki/en/mobile-pentesting/android-app-pentesting/frida-tutorial/objection-tutorial/)
 that are now tested and working with the patched objection wheel (v1.12.5-fixed).
 
+`console.log()` works inside the objection REPL — no need to use `send()`.
+
 Tested on: **Android 14 (SDK 34), arm64-v8a, Frida gadget 17.16.2, frida-tools 14.5.0**
 
 ---
@@ -10,7 +12,7 @@ Tested on: **Android 14 (SDK 34), arm64-v8a, Frida gadget 17.16.2, frida-tools 1
 ## Connect
 
 ```bash
-# Attach by process name
+# Attach by process name (recommended)
 objection -n asvid.github.io.fridaapp start
 
 # Or via gadget (non-rooted device)
@@ -32,7 +34,38 @@ ping
 ```
 file download <remote path> [<local path>]
 file upload <local path> [<remote path>]
-import <local path frida-script>
+```
+
+## Loading custom Frida scripts
+
+Scripts can use `console.log()` — output is shown in the objection REPL.
+
+### Via objection REPL (evaluate)
+
+```
+evaluate hook.js
+```
+
+### Via Frida CLI + adb forward (gadget mode)
+
+```bash
+# In a separate terminal, forward the port
+adb forward tcp:27042 tcp:27042
+
+# Attach Frida CLI to the gadget and load the script
+frida -H 127.0.0.1:27042 Gadget -l hook.js
+```
+
+### Via startup script
+
+```bash
+objection -n asvid.github.io.fridaapp start --startup-script hook.js
+```
+
+### Via import (creates a separate session — may fail in gadget mode)
+
+```
+import hook.js
 ```
 
 ## Jobs
