@@ -54,13 +54,13 @@ already).
 Bare `Java.use()` at top level works without manual wrapping.
 
 ```
-evaluate hooks.js
+evaluate hook.js
 ```
 
 ### Via startup script
 
 ```bash
-objection -n asvid.github.io.fridaapp start --startup-script hooks.js
+objection -n asvid.github.io.fridaapp start --startup-script hook.js
 ```
 
 ### Via Frida CLI
@@ -70,11 +70,11 @@ Frida CLI's `-l` does **not** auto-wrap — scripts must contain
 
 ```bash
 # USB
-frida -U -p $(adb pidof <package>) -l hooks.js
+frida -U -p $(adb pidof <package>) -l hook.js
 
 # Gadget (adb forward)
 adb forward tcp:27042 tcp:27042
-frida -H 127.0.0.1:27042 Gadget -l hooks.js
+frida -H 127.0.0.1:27042 Gadget -l hook.js
 ```
 
 ## Jobs
